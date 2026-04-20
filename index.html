@@ -50,8 +50,8 @@
           <button class="hidden sm:inline-flex px-4 py-2 rounded-full bg-blush text-brownsoft font-medium hover:bg-rosewarm transition">
             Search
           </button>
-          <button class="px-4 py-2 rounded-xl bg-faith text-white font-medium hover:opacity-90 transition">
-            Cart (0)
+          <button id="cart-btn" class="px-4 py-2 rounded-xl bg-faith text-white font-medium hover:opacity-90 transition">
+            Cart (<span id="cart-count">0</span>)
           </button>
         </div>
       </div>
@@ -223,7 +223,7 @@
             <p class="text-sm text-brownsoft/70 mt-1">A warm reminder with every sip.</p>
             <div class="mt-4 flex items-center justify-between">
               <span class="font-bold text-faith">$18</span>
-              <button class="px-4 py-2 rounded-full bg-faith text-white text-sm hover:opacity-90 transition">Add to Cart</button>
+              <button class="add-to-cart-btn px-4 py-2 rounded-full bg-faith text-white text-sm hover:opacity-90 transition" data-id="faith-over-fear-mug" data-name="Faith Over Fear Mug" data-price="18">Add to Cart</button>
             </div>
           </div>
         </div>
@@ -235,7 +235,7 @@
             <p class="text-sm text-brownsoft/70 mt-1">Simple, meaningful, and easy to carry.</p>
             <div class="mt-4 flex items-center justify-between">
               <span class="font-bold text-faith">$10</span>
-              <button class="px-4 py-2 rounded-full bg-faith text-white text-sm hover:opacity-90 transition">Add to Cart</button>
+              <button class="add-to-cart-btn px-4 py-2 rounded-full bg-faith text-white text-sm hover:opacity-90 transition" data-id="cross-keychain" data-name="Cross Keychain" data-price="10">Add to Cart</button>
             </div>
           </div>
         </div>
@@ -247,7 +247,7 @@
     <p class="text-sm text-brownsoft/70 mt-1">A peaceful scripture print to uplift your space.</p>
     <div class="mt-4 flex items-center justify-between">
       <span class="font-bold text-faith">$22</span>
-      <button class="px-4 py-2 rounded-full bg-faith text-white text-sm hover:opacity-90 transition">
+      <button class="add-to-cart-btn px-4 py-2 rounded-full bg-faith text-white text-sm hover:opacity-90 transition" data-id="do-not-fear-poster" data-name="Do Not Fear Poster" data-price="22">
         Add to Cart
       </button>
     </div>
@@ -261,7 +261,7 @@
     <p class="text-sm text-brownsoft/70 mt-1">A stylish faith-based tee with a bold uplifting message.</p>
     <div class="mt-4 flex items-center justify-between">
       <span class="font-bold text-faith">$30</span>
-      <button class="px-4 py-2 rounded-full bg-faith text-white text-sm hover:opacity-90 transition">
+      <button class="add-to-cart-btn px-4 py-2 rounded-full bg-faith text-white text-sm hover:opacity-90 transition" data-id="god-is-in-control-tshirt" data-name="God Is In Control T-Shirt" data-price="30">
         Add to Cart
       </button>
     </div>
@@ -367,6 +367,174 @@
       </div>
     </div>
   </footer>
+
+
+  <!-- Cart Overlay -->
+  <div id="cart-overlay" class="fixed inset-0 bg-black/40 z-40 hidden opacity-0 transition-opacity duration-300"></div>
+
+  <!-- Cart Drawer -->
+  <div id="cart-drawer" class="fixed top-0 right-0 h-full w-full sm:w-96 bg-cream z-50 shadow-2xl flex flex-col cart-drawer">
+    <!-- Header -->
+    <div class="flex items-center justify-between px-6 py-5 border-b border-rose-100 bg-white rounded-tl-3xl">
+      <h2 class="text-xl font-display font-bold text-brownsoft">Your Cart 🤍</h2>
+      <button id="cart-close" class="text-brownsoft/50 hover:text-brownsoft text-3xl leading-none transition">&times;</button>
+    </div>
+
+    <!-- Items list -->
+    <div id="cart-items" class="flex-1 overflow-y-auto px-6 py-4 space-y-4"></div>
+
+    <!-- Footer / subtotal -->
+    <div id="cart-footer" class="px-6 py-5 border-t border-rose-100 bg-white hidden">
+      <div class="flex justify-between items-center mb-4">
+        <span class="text-brownsoft/70 font-medium">Subtotal</span>
+        <span id="cart-subtotal" class="font-bold text-xl text-faith">$0</span>
+      </div>
+      <button class="w-full py-3 rounded-full bg-faith text-white font-semibold hover:opacity-90 transition shadow-soft">
+        Checkout
+      </button>
+    </div>
+  </div>
+
+  <style>
+    .cart-drawer {
+      transform: translateX(100%);
+      transition: transform 0.3s ease-in-out;
+    }
+    .cart-drawer.open {
+      transform: translateX(0);
+    }
+  </style>
+
+  <script>
+    (function () {
+      var CART_KEY = 'wbf_cart';
+
+      function loadCart() {
+        try { return JSON.parse(localStorage.getItem(CART_KEY)) || []; }
+        catch (e) { return []; }
+      }
+
+      function saveCart(cart) {
+        localStorage.setItem(CART_KEY, JSON.stringify(cart));
+      }
+
+      function updateCounter(cart) {
+        var total = cart.reduce(function (sum, item) { return sum + item.quantity; }, 0);
+        document.getElementById('cart-count').textContent = total;
+      }
+
+      function renderDrawer() {
+        var cart = loadCart();
+        var itemsEl = document.getElementById('cart-items');
+        var footerEl = document.getElementById('cart-footer');
+
+        if (cart.length === 0) {
+          itemsEl.innerHTML =
+            '<div class="flex flex-col items-center justify-center h-full text-center py-20 text-brownsoft/40">' +
+              '<p class="text-5xl mb-4">🤍</p>' +
+              '<p class="text-lg font-semibold">Your cart is empty</p>' +
+              '<p class="text-sm mt-1">Add some faith-filled items!</p>' +
+            '</div>';
+          footerEl.classList.add('hidden');
+          return;
+        }
+
+        footerEl.classList.remove('hidden');
+
+        itemsEl.innerHTML = cart.map(function (item) {
+          return (
+            '<div class="bg-white rounded-2xl p-4 shadow-soft flex gap-3 items-start">' +
+              '<div class="flex-1 min-w-0">' +
+                '<p class="font-semibold text-brownsoft leading-snug">' + item.name + '</p>' +
+                '<p class="text-faith font-bold mt-1">$' + item.price + '</p>' +
+              '</div>' +
+              '<div class="flex flex-col items-end gap-2 shrink-0">' +
+                '<button onclick="wbfCart.remove(\'' + item.id + '\')" class="text-brownsoft/30 hover:text-brownsoft text-2xl leading-none transition" title="Remove item">&times;</button>' +
+                '<div class="flex items-center gap-2 mt-1">' +
+                  '<button onclick="wbfCart.changeQty(\'' + item.id + '\', -1)" class="w-7 h-7 rounded-full bg-blush text-brownsoft font-bold text-lg hover:bg-rosewarm transition flex items-center justify-center leading-none">−</button>' +
+                  '<span class="w-6 text-center font-semibold text-brownsoft">' + item.quantity + '</span>' +
+                  '<button onclick="wbfCart.changeQty(\'' + item.id + '\', 1)" class="w-7 h-7 rounded-full bg-blush text-brownsoft font-bold text-lg hover:bg-rosewarm transition flex items-center justify-center leading-none">+</button>' +
+                '</div>' +
+              '</div>' +
+            '</div>'
+          );
+        }).join('');
+
+        var subtotal = cart.reduce(function (sum, item) { return sum + item.price * item.quantity; }, 0);
+        document.getElementById('cart-subtotal').textContent = '$' + subtotal;
+      }
+
+      function openDrawer() {
+        document.getElementById('cart-drawer').classList.add('open');
+        var overlay = document.getElementById('cart-overlay');
+        overlay.classList.remove('hidden');
+        requestAnimationFrame(function () { overlay.classList.add('opacity-100'); });
+        renderDrawer();
+      }
+
+      function closeDrawer() {
+        document.getElementById('cart-drawer').classList.remove('open');
+        var overlay = document.getElementById('cart-overlay');
+        overlay.classList.remove('opacity-100');
+        setTimeout(function () { overlay.classList.add('hidden'); }, 300);
+      }
+
+      window.wbfCart = {
+        remove: function (id) {
+          var cart = loadCart().filter(function (i) { return i.id !== id; });
+          saveCart(cart);
+          updateCounter(cart);
+          renderDrawer();
+        },
+        changeQty: function (id, delta) {
+          var cart = loadCart();
+          var item = cart.find(function (i) { return i.id === id; });
+          if (!item) return;
+          item.quantity += delta;
+          if (item.quantity <= 0) {
+            cart = cart.filter(function (i) { return i.id !== id; });
+          }
+          saveCart(cart);
+          updateCounter(cart);
+          renderDrawer();
+        }
+      };
+
+      document.addEventListener('DOMContentLoaded', function () {
+        updateCounter(loadCart());
+
+        document.getElementById('cart-btn').addEventListener('click', openDrawer);
+        document.getElementById('cart-close').addEventListener('click', closeDrawer);
+        document.getElementById('cart-overlay').addEventListener('click', closeDrawer);
+
+        document.querySelectorAll('.add-to-cart-btn').forEach(function (btn) {
+          btn.addEventListener('click', function () {
+            var id = this.dataset.id;
+            var name = this.dataset.name;
+            var price = parseFloat(this.dataset.price);
+
+            var cart = loadCart();
+            var existing = cart.find(function (i) { return i.id === id; });
+            if (existing) {
+              existing.quantity += 1;
+            } else {
+              cart.push({ id: id, name: name, price: price, quantity: 1 });
+            }
+            saveCart(cart);
+            updateCounter(cart);
+
+            var self = this;
+            self.textContent = 'Added ✓';
+            self.disabled = true;
+            setTimeout(function () {
+              self.textContent = 'Add to Cart';
+              self.disabled = false;
+            }, 1500);
+          });
+        });
+      });
+    })();
+  </script>
 
 </body>
 </html>
